@@ -1,2 +1,2 @@
-# Christain-RAG
+# Christian-RAG
 Streamlit sharing repo
