@@ -1,2 +1,2 @@
-# private-RAG
+# Christain-RAG
 Streamlit sharing repo
