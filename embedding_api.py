@@ -1,12 +1,18 @@
+# embedding_api.py
 import requests
 
 class RemoteOllamaEmbeddings:
-    def __init__(self, endpoint):
-        self.endpoint = endpoint  # Ollama 서버의 임베딩 API URL
+    def __init__(self, endpoint, model="nomic-embed-text"):
+        self.endpoint = endpoint
+        self.model = model
 
     def embed_query(self, text: str):
-        response = requests.post(self.endpoint, json={"text": text})
+        payload = {
+            "model": self.model,
+            "prompt": text
+        }
+        response = requests.post(self.endpoint, json=payload)
         if response.status_code == 200:
-            return response.json()["vector"]  # 서버에서 반환된 벡터
+            return response.json()["embedding"]
         else:
             raise Exception(f"Embedding API error: {response.text}")
