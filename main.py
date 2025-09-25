@@ -24,9 +24,6 @@ import json
 import faiss
 from langchain_community.docstore.in_memory import InMemoryDocstore
 
-# 올라마 서버 호출
-from langchain_community.embeddings import RemoteOllamaEmbeddings
-
 # api key 정보 로드
 load_dotenv()
 
@@ -61,9 +58,8 @@ if "chain" not in st.session_state:
     st.session_state["chain"] = None
 
 # 임베딩 모델 설정
-# EMBEDDING_MODEL = "nomic-embed-text"
-# embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
-embeddings = RemoteOllamaEmbeddings("https://your-ollama-server.com/api/embeddings")
+EMBEDDING_MODEL = "nomic-embed-text"
+embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
 
 # 저장된 데이터 로드
 # 벡터스토어 경로 및 초기화
