@@ -1,4 +1,3 @@
-
 # 라이브러리 호출
 import os
 import streamlit as st
@@ -13,7 +12,7 @@ from langchain_openai import ChatOpenAI
 import time # 작업 수행 시 텀을 주기 위한 라이브러리
 
 # 입력한 데이터 DB에 저장하기 위한 라이브러리
-from data_loader import HWPLoader # 입력 파일 로더
+from data_loader import HWPLoader, JsonLoader # 입력 파일 로더
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import OllamaEmbeddings
 from langchain_community.vectorstores import FAISS
@@ -74,14 +73,7 @@ vectorstore = FAISS.load_local(
 # 사이드바 버튼 생성
 with st.sidebar:
     # 파일 업로드
-    uploaded_file = st.file_uploader("파일 업로드", type=["hwp"])
-
-    # 선택박스
-    selected_model = st.selectbox(
-        "LLM 선택",
-        [ "gpt-4o","EXAONE-3.5"], #,"EXAONE-4.0"
-        index=0,
-    )
+    uploaded_file = st.file_uploader("파일 업로드", type=["hwp","json"])
 
     # 초기화 버튼 생성
     clear_btn = st.button("초기화")
@@ -90,7 +82,9 @@ with st.sidebar:
 # 이전 대화기록 출력
 def print_messages():
     for chat_message in st.session_state["messages"]:
-        st.chat_message(chat_message.role).write(chat_message.content)
+        # st.chat_message(chat_message.role).write(chat_message.content)
+        with st.chat_message(chat_message.role):
+            st.markdown(chat_message.content)
 
 
 # 새로운 메세지 추가
@@ -121,45 +115,57 @@ def embed_file(file):
 
     # 만약 기존에 있던 데이터라면 벡터스토어에서 검색
     if check_duplicate(file_hash):
-        warning_msg.warning("이미 업로드된 파일입니다!")
+        warning_msg.warning("⚠️이미 업로드된 파일입니다!")
         retriever = vectorstore.as_retriever()
         time.sleep(3)
         warning_msg.empty()  # 경고 메시지 제거
         return retriever # 중복이면 여기서 함수 종료
+    
+    # 파일 확장자 확인
+    ext = os.path.splitext(file.name)[1].lower()
 
     # 문서 로드(Load Documents)
     try:
-        loader = HWPLoader(file_path)
-        docs = loader.load()
+        if ext == ".hwp":
+            loader = HWPLoader(file_path)
+            docs = loader.load()
+
+        elif ext == ".json":
+            loader = JsonLoader(file_path)
+            docs = loader.load()
+
+        else:
+            raise ValueError("지원되지 않는 확장자")
+
     except Exception as e:
-        warning_msg.error("현재 지원되지 않는 형식의 파일입니다...")
+        warning_msg.error("현재 지원되지 않는 형식의 파일입니다...😢")
         time.sleep(3)
         warning_msg.empty()
         return retriever
 
+    warning_msg.warning("...📂문서 처리중입니다...")
+    
     # 문서 메타데이터에 파일 해시 추가
     for doc in docs:
         doc.metadata["file_hash"] = file_hash
         doc.metadata["file_name"] = file.name
 
     # 문서 분할(Split Documents)
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=50)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=50)
     split_documents = text_splitter.split_documents(docs)
 
     # DB 생성(Create DB) 및 저장
     vectorstore.add_documents(split_documents, embeddings=embeddings)
     vectorstore.save_local(folder_path="./vectorstore", index_name="faiss_index")
 
+    warning_msg.empty()
     # 검색기(Retriever) 생성
     retriever = vectorstore.as_retriever()
 
     return retriever
 
-#def format_docs(docs):
-    return "\n\n".join(doc.page_content for doc in docs)
-
 # 체인 생성
-def create_chain(retriever, model_name="gpt-4o"):
+def create_chain(retriever, model_name="EXAONE-3.5"):
     
     # 프롬프트
     prompt = load_prompt("prompt.yaml", encoding="utf-8")
@@ -167,8 +173,6 @@ def create_chain(retriever, model_name="gpt-4o"):
     # 언어모델(LLM)
     if model_name == "EXAONE-3.5":
         llm = ChatOllama(model="EXAONE3.5-Q8:latest", temperature=0)
-    else:
-        llm = ChatOpenAI(model_name=model_name, temperature=0)
     
     # 체인 생성
     chain = (
@@ -186,16 +190,17 @@ def create_chain(retriever, model_name="gpt-4o"):
 if uploaded_file:
     # 파일 업로드 후 retriever 생성 (작업시간 오래걸릴 예정)
     retriever = embed_file(uploaded_file)
-    chain = create_chain(retriever, model_name=selected_model)
+    chain = create_chain(retriever, model_name="EXAONE-3.5") # selected_model
     st.session_state["chain"] = chain
 else:  # 데이터를 입력하지 않은 상태로 입력 처리 ; 기존 벡터스토어에 저장된 데이터 기반 답변 생성
     retriever = vectorstore.as_retriever()
-    chain = create_chain(retriever, model_name=selected_model)
+    chain = create_chain(retriever, model_name="EXAONE-3.5")
     st.session_state["chain"] = chain
 
 # 초기화 버튼이 눌리면
 if clear_btn:
     st.session_state["messages"] = []  # 빈 리스트 만들기
+    st.session_state["chain"] = None
 
 # 호출
 print_messages()
@@ -213,7 +218,9 @@ if user_input:  # 사용자의 입력이 들어오면, (prompt 변수에 입력�
     chain = st.session_state["chain"]
 
     # 사용자의 입력
-    st.chat_message("user").write(user_input)
+    # st.chat_message("user").write(user_input)
+    with st.chat_message("user"):
+        st.markdown(user_input)
 
     response = chain.stream(
         user_input
@@ -222,7 +229,6 @@ if user_input:  # 사용자의 입력이 들어오면, (prompt 변수에 입력�
     with st.chat_message("assistant"):
         # 빈 컨테이너 만들기 -> 스트리밍 출력(토큰별)
         container = st.empty()
-
         ai_answer = ""  # 빈 문자열에 이어붙이기
         for token in response:
             ai_answer += token
