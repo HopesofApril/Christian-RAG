@@ -14,7 +14,8 @@ import time # 작업 수행 시 텀을 주기 위한 라이브러리
 # 입력한 데이터 DB에 저장하기 위한 라이브러리
 from data_loader import HWPLoader, JsonLoader # 입력 파일 로더
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import OllamaEmbeddings
+# from langchain_community.embeddings import OllamaEmbeddings
+from embedding_api import RemoteOllamaEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.runnables import RunnablePassthrough
 
@@ -58,8 +59,9 @@ if "chain" not in st.session_state:
     st.session_state["chain"] = None
 
 # 임베딩 모델 설정
-EMBEDDING_MODEL = "nomic-embed-text"
-embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+# EMBEDDING_MODEL = "nomic-embed-text"
+# embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+embeddings = RemoteOllamaEmbeddings("https://your-ollama-server.com/api/embeddings")
 
 # 저장된 데이터 로드
 # 벡터스토어 경로 및 초기화
