@@ -24,6 +24,9 @@ import json
 import faiss
 from langchain_community.docstore.in_memory import InMemoryDocstore
 
+# 올라마 서버 호출
+from langchain_community.embeddings import RemoteOllamaEmbeddings
+
 # api key 정보 로드
 load_dotenv()
 
@@ -44,7 +47,6 @@ os.environ["HF_HOME"] = "./model"
 
 st.title("소망이 : RAG 기반 말씀 검색 시스템")
 
-
 # 경고 메세지를 띄우기 위한 빈 영역 생성
 warning_msg = st.empty()
 
@@ -59,8 +61,9 @@ if "chain" not in st.session_state:
     st.session_state["chain"] = None
 
 # 임베딩 모델 설정
-EMBEDDING_MODEL = "nomic-embed-text"
-embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+# EMBEDDING_MODEL = "nomic-embed-text"
+# embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+embeddings = RemoteOllamaEmbeddings("https://your-ollama-server.com/api/embeddings")
 
 # 저장된 데이터 로드
 # 벡터스토어 경로 및 초기화
