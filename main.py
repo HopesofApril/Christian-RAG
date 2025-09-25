@@ -25,9 +25,12 @@ from langchain_community.docstore.in_memory import InMemoryDocstore
 # 시연용 DummyEmbeddings 정의
 # ---------------------------
 class DummyEmbeddings:
+    def __call__(self, text):
+        return self.embed_query(text)
+
     def embed_query(self, text):
-        # FAISS 검색만 사용할 거라 실제 임베딩은 필요 없음
-        return [0.0] * 1536  # 기존 nomic 벡터 차원 수와 동일하게 맞춰주세요
+        # 시연용: 실제 임베딩은 필요 없음
+        return [0.0] * 1536  # 기존 nomic 벡터 차원과 동일
 
 # api key 정보 로드
 load_dotenv()
