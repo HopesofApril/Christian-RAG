@@ -8,7 +8,6 @@ from langchain_core.output_parsers import StrOutputParser
 from load_prompt import load_prompt  # 저장된 프롬프트 템플릿 로더
 from dotenv import load_dotenv  # 저장된 api key 로더
 from langchain_ollama import ChatOllama
-from langchain_openai import ChatOpenAI
 import time  # 작업 수행 시 텀을 주기 위한 라이브러리
 
 # 입력한 데이터 DB에 저장하기 위한 라이브러리
@@ -19,21 +18,24 @@ from langchain_core.runnables import RunnablePassthrough
 
 # 해시값 생성을 위한 라이브러리
 from hashlib import md5
-import json
 import faiss
 from langchain_community.docstore.in_memory import InMemoryDocstore
+
+# ---------------------------
+# 시연용 DummyEmbeddings 정의
+# ---------------------------
+class DummyEmbeddings:
+    def embed_query(self, text):
+        # FAISS 검색만 사용할 거라 실제 임베딩은 필요 없음
+        return [0.0] * 1536  # 기존 nomic 벡터 차원 수와 동일하게 맞춰주세요
 
 # api key 정보 로드
 load_dotenv()
 
 # 캐시 디렉토리 생성
-if not os.path.exists(".cache"):
-    os.mkdir(".cache")
-if not os.path.exists(".cache/files"):
-    os.mkdir(".cache/files")
-if not os.path.exists("./model"):
-    os.mkdir("./model")
-
+for folder in [".cache", ".cache/files", "./model"]:
+    if not os.path.exists(folder):
+        os.mkdir(folder)
 os.environ["TRANSFORMERS_CACHE"] = "./model"
 os.environ["HF_HOME"] = "./model"
 
@@ -49,18 +51,19 @@ if "chain" not in st.session_state:
     st.session_state["chain"] = None
 
 # ---------------------------
-# 임베딩 없이 기존 FAISS 벡터만 사용
+# 기존 FAISS 벡터스토어 로드
 # ---------------------------
+embeddings = DummyEmbeddings()  # 시연용
 vectorstore = FAISS.load_local(
     folder_path="./vectorstore",
     index_name="faiss_index",
-    embeddings=None,  # 시연용: 임베딩 객체 없이 기존 벡터 로드
+    embeddings=embeddings,
     allow_dangerous_deserialization=True
 )
 
 # 사이드바 버튼
 with st.sidebar:
-    uploaded_file = st.file_uploader("파일 업로드", type=["hwp","json"])
+    uploaded_file = st.file_uploader("파일 업로드", type=["hwp", "json"])
     clear_btn = st.button("초기화")
 
 # 메시지 출력
@@ -84,8 +87,7 @@ def embed_file(file):
     warning_msg.warning("⚠️ 시연용: 새 임베딩 생성 생략, 기존 벡터로만 검색합니다")
     time.sleep(2)
     warning_msg.empty()
-    
-    # 기존 FAISS 벡터만 활용
+
     retriever = vectorstore.as_retriever()
     return retriever
 
